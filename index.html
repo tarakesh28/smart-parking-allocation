@@ -1,34 +1,1256 @@
 <!DOCTYPE html>
-<html>
+<html lang="en" data-theme="light">
 <head>
-    <title>Smart Parking Allocation</title>
-    <link rel="stylesheet" href="style.css">
-</head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPAA — Smart Parking Allocation Algorithm</title>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=Fira+Code:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* ─── THEME VARIABLES ─────────────────────────────────────── */
+[data-theme="light"] {
+  --bg: #f7f5f0;
+  --surface: #ffffff;
+  --surface2: #f0ede6;
+  --border: #d8d3c8;
+  --border2: #e8e3d8;
+  --accent: #8b5e3c;
+  --accent2: #2e6b8a;
+  --accent3: #3a7a4a;
+  --text: #1a1610;
+  --muted: #6b6458;
+  --zone1: #b07d3a;
+  --zone2: #2a6080;
+  --red: #a03030;
+  --green: #2a6a3a;
+  --shadow: rgba(0,0,0,0.07);
+  --nav-bg: rgba(247,245,240,0.96);
+  --formula-bg: #fffdf8;
+  --code-bg: #f5f0e8;
+  --log-bg: #f8f5ee;
+  --entry-fill: #e8f5ea;
+  --entry-stroke: #3a7a4a;
+  --canvas-bg: #ffffff;
+}
+[data-theme="dark"] {
+  --bg: #0f1117;
+  --surface: #181c26;
+  --surface2: #1f2433;
+  --border: #2e3448;
+  --border2: #252a38;
+  --accent: #d4976a;
+  --accent2: #6aaed4;
+  --accent3: #7ac47a;
+  --text: #e8e2d8;
+  --muted: #8a8898;
+  --zone1: #c8923a;
+  --zone2: #4a90b8;
+  --red: #d47a7a;
+  --green: #7ac47a;
+  --shadow: rgba(0,0,0,0.3);
+  --nav-bg: rgba(15,17,23,0.95);
+  --formula-bg: #1a1f2e;
+  --code-bg: #1f2433;
+  --log-bg: #141820;
+  --entry-fill: #1a2e1a;
+  --entry-stroke: #7ac47a;
+  --canvas-bg: #181c26;
+}
 
+/* ─── BASE ────────────────────────────────────────────────── */
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: 22px;
+  line-height: 1.9;
+  transition: background 0.25s, color 0.25s;
+}
+
+/* ─── NAV ─────────────────────────────────────────────────── */
+nav {
+  position: fixed; top:0; left:0; right:0; z-index:200;
+  background: var(--nav-bg);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 2.5rem; height: 54px; gap: 1.8rem;
+  box-shadow: 0 1px 8px var(--shadow);
+  transition: background 0.25s;
+}
+nav .brand {
+  font-family: 'Fira Code', monospace;
+  font-size: 0.82rem; letter-spacing: 0.1em;
+  color: var(--accent); text-transform: uppercase;
+  margin-right: auto; font-weight: 600;
+}
+nav a {
+  font-family: 'Fira Code', monospace;
+  font-size: 0.74rem; color: var(--muted);
+  text-decoration: none; letter-spacing: 0.06em;
+  text-transform: uppercase; transition: color 0.2s;
+}
+nav a:hover { color: var(--accent); }
+.theme-toggle {
+  font-size: 0.85rem;
+  width: 28px; height: 28px;
+  border: 1px solid var(--border2);
+  background: var(--surface2);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  line-height: 1;
+  opacity: 0.7;
+}
+.theme-toggle:hover { border-color: var(--muted); color: var(--text); opacity: 1; }
+
+/* ─── SECTIONS ────────────────────────────────────────────── */
+section {
+  max-width: 940px; margin: 0 auto;
+  padding: 5.5rem 2.5rem;
+  border-bottom: 1px solid var(--border2);
+}
+section:first-of-type { padding-top: 7.5rem; }
+#sim-section, #analysis { max-width: 1180px; overflow: hidden; }
+
+.section-label {
+  font-family: 'Fira Code', monospace;
+  font-size: 0.72rem; letter-spacing: 0.2em;
+  color: var(--accent); text-transform: uppercase;
+  margin-bottom: 1rem; font-weight: 600;
+}
+h1 { font-size: 3.2rem; font-weight: 600; line-height: 1.15; margin-bottom: 0.5rem; }
+h2 { font-size: 2.1rem; font-weight: 600; margin-bottom: 1.5rem; }
+h3 {
+  font-size: 1.05rem; font-weight: 600; color: var(--accent);
+  margin: 2.2rem 0 0.9rem;
+  font-family: 'Fira Code', monospace; letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+p { margin-bottom: 1.1rem; color: var(--text); opacity: 0.85; font-size: 1.1rem; }
+.subtitle { color: var(--muted); font-style: italic; font-size: 1.25rem; margin-bottom: 2.8rem; }
+
+/* ─── FORMULA ─────────────────────────────────────────────── */
+.formula-box {
+  background: var(--formula-bg); border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  padding: 1.4rem 2rem; margin: 1.8rem 0;
+  font-family: 'Fira Code', monospace; font-size: 1.5rem;
+  color: var(--text); box-shadow: 0 2px 8px var(--shadow);
+}
+.formula-box .flabel {
+  font-size: 0.65rem; color: var(--muted); letter-spacing: 0.18em;
+  text-transform: uppercase; margin-bottom: 0.5rem; display: block; font-weight: 600;
+}
+.formula-box .fsym { color: var(--accent); }
+
+/* ─── VAR TABLE ───────────────────────────────────────────── */
+.var-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 1.05rem; box-shadow: 0 1px 4px var(--shadow); }
+.var-table th { text-align: left; color: var(--muted); font-size: 0.68rem; letter-spacing: 0.15em; text-transform: uppercase; padding: 0.6rem 1.1rem; border-bottom: 2px solid var(--border); font-family: 'Fira Code', monospace; background: var(--surface2); }
+.var-table td { padding: 0.85rem 1.1rem; border-bottom: 1px solid var(--border2); vertical-align: top; }
+.var-table td:first-child { font-family: 'Fira Code', monospace; color: var(--accent); font-size: 1.15rem; white-space: nowrap; background: var(--formula-bg); font-weight: 600; }
+.var-table tr:last-child td { border-bottom: none; }
+
+/* ─── TRADEOFF ────────────────────────────────────────────── */
+.tradeoff-wrap { margin: 2rem 0; }
+.tradeoff-axis { display: flex; align-items: center; margin-bottom: 1.2rem; }
+.tradeoff-axis-line { flex: 1; height: 3px; background: linear-gradient(to right, var(--zone1), var(--muted), var(--zone2)); }
+.tax-label { font-family: 'Fira Code', monospace; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; padding: 0 0.9rem; font-weight: 600; }
+.tax-label.left { color: var(--zone1); }
+.tax-label.right { color: var(--zone2); }
+.tradeoff-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+.tradeoff-card { border: 1px solid var(--border); padding: 1.6rem 1.8rem; background: var(--surface); box-shadow: 0 2px 8px var(--shadow); }
+.tradeoff-card.tc-l { border-top: 3px solid var(--zone1); }
+.tradeoff-card.tc-r { border-top: 3px solid var(--zone2); }
+.tc-tag { font-family: 'Fira Code', monospace; font-size: 0.66rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.6rem; font-weight: 700; }
+.tc-l .tc-tag { color: var(--zone1); }
+.tc-r .tc-tag { color: var(--zone2); }
+.tc-alpha { font-family: 'Fira Code', monospace; font-size: 1.8rem; line-height: 1.1; margin-bottom: 0.3rem; font-weight: 700; }
+.tc-l .tc-alpha { color: var(--zone1); }
+.tc-r .tc-alpha { color: var(--zone2); }
+.tc-eq { font-family: 'Fira Code', monospace; font-size: 0.82rem; color: var(--muted); margin-bottom: 0.7rem; }
+.tradeoff-card p { font-size: 1.08rem; color: var(--muted); margin: 0; line-height: 1.7; opacity: 1; }
+
+/* ─── ALGORITHM ───────────────────────────────────────────── */
+.algo-box { background: var(--surface); border: 1px solid var(--border); padding: 2.2rem 2.4rem; margin: 1.5rem 0; box-shadow: 0 2px 8px var(--shadow); }
+.algo-step { display: flex; gap: 1.4rem; margin-bottom: 1.6rem; align-items: flex-start; }
+.algo-step:last-child { margin-bottom: 0; }
+.algo-num { font-family: 'Fira Code', monospace; font-size: 0.8rem; font-weight: 700; color: #fff; background: var(--accent); border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 3px; }
+.algo-content { flex: 1; }
+.algo-title { font-family: 'Fira Code', monospace; font-size: 0.82rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.4rem; }
+.algo-desc { font-size: 1.08rem; line-height: 1.78; }
+.ifc { font-family: 'Fira Code', monospace; font-size: 0.9rem; color: var(--accent); background: var(--code-bg); padding: 0.1em 0.4em; border-radius: 2px; }
+.algo-sub { margin-top: 0.6rem; padding-left: 0.7rem; border-left: 2px solid var(--border); }
+.algo-sub-item { font-family: 'Fira Code', monospace; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.25rem; }
+.algo-sub-item .val { color: var(--accent2); font-weight: 700; }
+
+/* ─── SIMULATION ──────────────────────────────────────────── */
+.sim-controls {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 1.3rem; margin-bottom: 1.6rem;
+  background: var(--surface); border: 1px solid var(--border);
+  padding: 1.5rem 1.8rem; box-shadow: 0 2px 6px var(--shadow);
+}
+.ctrl-group label { display: block; font-family: 'Fira Code', monospace; font-size: 0.67rem; letter-spacing: 0.13em; color: var(--muted); margin-bottom: 0.5rem; font-weight: 600; }
+.ctrl-group label .lbl-text { text-transform: uppercase; }
+.ctrl-val { font-family: 'Fira Code', monospace; font-size: 1.2rem; color: var(--accent); font-weight: 700; }
+input[type=range] { width: 100%; accent-color: var(--accent); cursor: pointer; margin-top: 0.4rem; }
+input[type=range]:disabled { opacity: 0.3; cursor: not-allowed; }
+input[type=text] { width: 100%; margin-top: 0.3rem; padding: 0.4rem 0.7rem; font-family: 'Fira Code', monospace; font-size: 0.86rem; border: 1px solid var(--border); background: var(--surface2); color: var(--text); outline: none; }
+input[type=text]:focus { border-color: var(--accent); }
+input[type=text]:disabled { opacity: 0.3; cursor: not-allowed; }
+.multi-row { grid-column: 1/-1; display: flex; align-items: center; gap: 1rem; padding-top: 1rem; border-top: 1px solid var(--border2); }
+.multi-row label { font-family: 'Fira Code', monospace; font-size: 0.67rem; letter-spacing: 0.1em; color: var(--muted); font-weight: 600; white-space: nowrap; cursor: pointer; }
+input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; flex-shrink: 0; }
+
+.sim-buttons { display: flex; gap: 0.7rem; margin-bottom: 1.6rem; flex-wrap: wrap; }
+button {
+  font-family: 'Fira Code', monospace; font-size: 0.74rem; letter-spacing: 0.08em;
+  text-transform: uppercase; padding: 0.6rem 1.3rem;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  cursor: pointer; transition: all 0.15s; font-weight: 600; box-shadow: 0 1px 3px var(--shadow);
+}
+button:hover { background: var(--surface2); border-color: var(--accent); color: var(--accent); }
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+button.primary:hover { opacity: 0.88; }
+button.secondary { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+button.secondary:hover { opacity: 0.88; }
+button:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+.sim-layout { display: grid; grid-template-columns: 1fr 250px; gap: 1.6rem; align-items: start; }
+
+.canvas-wrapper { position: relative; }
+.entry-marker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--entry-fill);
+  border: 2px solid var(--entry-stroke);
+  padding: 0.4rem 0.9rem 0.4rem 0.7rem;
+  margin-bottom: 6px;
+  box-shadow: 0 2px 8px var(--shadow);
+}
+.entry-arrow {
+  font-size: 1.1rem;
+  color: var(--entry-stroke);
+  line-height: 1;
+}
+.entry-label {
+  font-family: 'Fira Code', monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--entry-stroke);
+  letter-spacing: 0.12em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+.entry-coord {
+  font-size: 0.65rem;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  color: var(--entry-stroke);
+  opacity: 0.75;
+}
+#parking-canvas { display: block; width: 100%; border: 1px solid var(--border); background: var(--canvas-bg); box-shadow: 0 2px 8px var(--shadow); cursor: crosshair; }
+/* Tooltip for spot hover */
+#spot-tooltip {
+  position: absolute;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 0.35rem 0.7rem;
+  font-family: 'Fira Code', monospace;
+  font-size: 0.76rem;
+  color: var(--text);
+  pointer-events: none;
+  box-shadow: 0 2px 8px var(--shadow);
+  display: none;
+  white-space: nowrap;
+  z-index: 50;
+}
+
+/* EVENT LOG */
+#sim-log { margin-top: 1rem; background: var(--log-bg); border: 1px solid var(--border); font-family: 'Fira Code', monospace; font-size: 0.78rem; height: 210px; overflow-y: auto; box-shadow: inset 0 1px 4px var(--shadow); }
+.log-header { font-size: 0.64rem; letter-spacing: 0.15em; color: var(--muted); padding: 0.45rem 0.9rem; border-bottom: 1px solid var(--border2); background: var(--surface2); font-weight: 600; position: sticky; top: 0; z-index: 2; }
+.log-entries { padding: 0.35rem 0.9rem 0.6rem; }
+.log-entry { line-height: 1.7; border-bottom: 1px solid var(--border2); padding: 0.14rem 0; }
+.log-entry:last-child { border-bottom: none; }
+.le-car { color: var(--accent); font-weight: 700; }
+.le-z1 { color: var(--zone1); }
+.le-z2 { color: var(--zone2); }
+.le-info { color: var(--muted); }
+.le-done { color: var(--green); font-weight: 700; }
+.le-head { color: var(--accent2); font-weight: 700; }
+
+/* STATS */
+.stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 0.9rem; margin-top: 0.9rem; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); padding: 0.9rem 1.1rem; box-shadow: 0 1px 4px var(--shadow); }
+.stat-label { font-family: 'Fira Code', monospace; font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.3rem; font-weight: 600; }
+.stat-val { font-family: 'Fira Code', monospace; font-size: 1.5rem; color: var(--text); font-weight: 700; }
+
+/* ZONE PANEL */
+.zone-panel { display: flex; flex-direction: column; gap: 1rem; }
+.zone-card { background: var(--surface); border: 1px solid var(--border); padding: 1.1rem 1.3rem; box-shadow: 0 2px 6px var(--shadow); }
+.zt { font-family: 'Fira Code', monospace; font-size: 0.64rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.55rem; font-weight: 700; }
+.zone-card.z1 .zt { color: var(--zone1); }
+.zone-card.z2 .zt { color: var(--zone2); }
+.zc { font-family: 'Fira Code', monospace; font-size: 2.4rem; line-height: 1; margin-bottom: 0.2rem; font-weight: 700; }
+.zone-card.z1 .zc { color: var(--zone1); }
+.zone-card.z2 .zc { color: var(--zone2); }
+.zsub { font-family: 'Fira Code', monospace; font-size: 0.68rem; color: var(--muted); }
+.zbar-wrap { margin-top: 0.75rem; height: 7px; background: var(--border2); border-radius: 4px; overflow: hidden; }
+.zbar { height: 100%; transition: width 0.4s ease; border-radius: 4px; max-width: 100%; }
+.zone-card.z1 .zbar { background: var(--zone1); }
+.zone-card.z2 .zbar { background: var(--zone2); }
+
+.as-card { background: var(--surface); border: 1px solid var(--border); padding: 1.1rem 1.3rem; box-shadow: 0 2px 6px var(--shadow); }
+.as-card-title { font-family: 'Fira Code', monospace; font-size: 0.63rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.85rem; font-weight: 600; }
+.as-row { display: flex; justify-content: space-between; align-items: baseline; padding: 0.22rem 0; border-bottom: 1px solid var(--border2); font-family: 'Fira Code', monospace; font-size: 0.8rem; }
+.as-row:last-child { border-bottom: none; }
+.as-k { color: var(--muted); }
+.as-v { color: var(--text); font-weight: 700; }
+
+.leg-card { background: var(--surface); border: 1px solid var(--border); padding: 1.1rem 1.3rem; box-shadow: 0 1px 4px var(--shadow); }
+.leg-title { font-family: 'Fira Code', monospace; font-size: 0.63rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.7rem; font-weight: 600; }
+.leg-row { display: flex; align-items: center; gap: 0.55rem; font-family: 'Fira Code', monospace; font-size: 0.72rem; color: var(--muted); margin-bottom: 0.38rem; }
+.leg-row:last-child { margin: 0; }
+.leg-sw { width: 15px; height: 15px; flex-shrink: 0; border-radius: 2px; }
+
+/* ─── ANALYSIS ────────────────────────────────────────────── */
+.alpha-selector { background: var(--surface); border: 1px solid var(--border); padding: 1.5rem 1.8rem; margin: 1.5rem 0; box-shadow: 0 2px 6px var(--shadow); }
+.asel-hdr { font-family: 'Fira Code', monospace; font-size: 0.68rem; letter-spacing: 0.14em; color: var(--muted); margin-bottom: 1.1rem; font-weight: 600; }
+.alpha-chips { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-bottom: 1.3rem; }
+.achip { font-family: 'Fira Code', monospace; font-size: 0.8rem; padding: 0.42rem 1.1rem; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); cursor: pointer; transition: all 0.15s; border-radius: 3px; font-weight: 600; user-select: none; }
+.achip.sel { background: var(--accent); color: #fff; border-color: var(--accent); }
+.achip:hover:not(.sel) { border-color: var(--accent); color: var(--accent); }
+
+/* CHARTS — fixed height, no resize issues */
+.chart-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.6rem; margin: 1.5rem 0; width: 100%; min-width: 0; }
+.chart-wrap { background: var(--surface); border: 1px solid var(--border); padding: 1.6rem 1.4rem; box-shadow: 0 2px 8px var(--shadow); min-width: 0; overflow: hidden; }
+.chart-wrap h4 { font-family: 'Fira Code', monospace; font-size: 0.7rem; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 1rem; font-weight: 600; }
+.chart-container { position: relative; width: 100%; height: 260px; }
+
+/* ANALYSIS TABLE */
+.analysis-table-wrap { overflow-x: auto; margin: 1.5rem 0; box-shadow: 0 2px 8px var(--shadow); }
+.analysis-table { width: 100%; border-collapse: collapse; font-family: 'Fira Code', monospace; font-size: 0.84rem; }
+.analysis-table th { padding: 0.7rem 1.1rem; text-align: left; color: var(--muted); font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase; border-bottom: 2px solid var(--border); background: var(--surface2); font-weight: 600; }
+.analysis-table td { padding: 0.7rem 1.1rem; border-bottom: 1px solid var(--border2); font-weight: 600; }
+.analysis-table tr.best td { color: var(--green); background: var(--entry-fill); }
+.analysis-table td:first-child { color: var(--accent); font-weight: 800; }
+.analysis-table tr:last-child td { border-bottom: none; }
+
+/* ─── INSIGHT ─────────────────────────────────────────────── */
+.insight-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.4rem; margin: 2rem 0; }
+.insight-card {
+  background: var(--surface); border: 1px solid var(--border);
+  padding: 1.8rem 1.6rem;
+  box-shadow: 0 3px 12px var(--shadow);
+  display: flex; flex-direction: column; gap: 0.7rem;
+}
+.insight-card.ic-low { border-top: 4px solid var(--zone1); }
+.insight-card.ic-mid { border-top: 4px solid var(--accent3); }
+.insight-card.ic-high { border-top: 4px solid var(--zone2); }
+.ic-label { font-family: 'Fira Code', monospace; font-size: 0.68rem; letter-spacing: 0.15em; font-weight: 700; }
+.ic-low .ic-label { color: var(--zone1); }
+.ic-mid .ic-label { color: var(--accent3); }
+.ic-high .ic-label { color: var(--zone2); }
+.ic-heading { font-size: 1.3rem; font-weight: 600; line-height: 1.3; }
+.ic-body { font-size: 1.08rem; color: var(--muted); line-height: 1.72; }
+.ic-metric { font-family: 'Fira Code', monospace; font-size: 0.78rem; color: var(--muted); margin-top: 0.4rem; padding-top: 0.6rem; border-top: 1px solid var(--border2); display: flex; gap: 1rem; flex-wrap: wrap; }
+.ic-metric span { background: var(--surface2); padding: 0.15rem 0.5rem; border-radius: 2px; }
+
+.insight-summary {
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 4px solid var(--accent3);
+  padding: 1.8rem 2rem; margin: 1.5rem 0;
+  box-shadow: 0 2px 8px var(--shadow);
+}
+.insight-summary .is-title { font-family: 'Fira Code', monospace; font-size: 0.68rem; letter-spacing: 0.16em; color: var(--accent3); margin-bottom: 1rem; font-weight: 700; }
+.insight-summary p { font-size: 1.15rem; margin-bottom: 0.9rem; opacity: 0.9; }
+.insight-summary p:last-child { margin: 0; }
+
+.notice { background: var(--formula-bg); border: 1px solid var(--border); border-left: 4px solid var(--accent); padding: 0.9rem 1.3rem; font-family: 'Fira Code', monospace; font-size: 0.78rem; color: var(--muted); margin: 0.8rem 0; line-height: 1.65; }
+
+footer { text-align: center; padding: 2.5rem; font-family: 'Fira Code', monospace; font-size: 0.68rem; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; border-top: 1px solid var(--border); background: var(--surface); }
+
+@media(max-width:820px){
+  nav a { display:none; }
+  .sim-layout { grid-template-columns: 1fr; }
+  .chart-grid-3 { grid-template-columns: 1fr; }
+  .tradeoff-cards { grid-template-columns: 1fr; }
+  .insight-grid { grid-template-columns: 1fr; }
+  .sim-controls { grid-template-columns: 1fr 1fr; }
+  h1 { font-size: 2.3rem; }
+}
+</style>
+</head>
 <body>
 
-<h1>Smart Parking Allocation Algorithm</h1>
+<nav>
+  <span class="brand">SPAA · Mathematics Research</span>
+  <a href="#intro">Intro</a>
+  <a href="#model">Model</a>
+  <a href="#algorithm">Algorithm</a>
+  <a href="#sim-section">Simulation</a>
+  <a href="#analysis">Analysis</a>
+  <a href="#insight">Insight</a>
+  <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Toggle dark/light mode">&#9790;</button>
+</nav>
 
-<p>
-This project explores a congestion-sensitive parking allocation model
-that balances travel distance and zone load.
-</p>
+<!-- ═══════════════ §1 INTRODUCTION ═══════════════ -->
+<section id="intro">
+  <div class="section-label">§ 1 — Introduction</div>
+  <h1>Smart Parking<br>Allocation Algorithm</h1>
+  <p class="subtitle">A congestion-sensitive mathematical model for balanced parking distribution</p>
 
-<p><b>Cost Function:</b> C = d + αL</p>
+  <p>In conventional parking systems, arriving vehicles are directed to the <em>nearest available spot</em>. This simple rule minimises individual walking distance but systematically overloads zones near the entrance while remote zones remain underutilised — a classic tension between <strong>efficiency</strong> and <strong>fairness</strong>.</p>
+  <p>This project introduces a <strong>cost-function-based allocation model</strong>. Each candidate spot is scored by a weighted combination of travel distance and zone congestion, and the vehicle is assigned to the minimum-cost spot.</p>
 
-<h2>Interactive Simulation</h2>
+  <div class="formula-box">
+    <span class="flabel">Cost Function</span>
+    <span class="fsym">C</span> = d + <span class="fsym">&#945;</span> · L
+  </div>
 
-<p>
-An interactive simulation is currently under development.
-The final version will allow users to adjust α and observe how
-parking allocation changes.
-</p>
+  <table class="var-table">
+    <thead><tr><th>Symbol</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td>C</td><td>Total cost of assigning a vehicle to a candidate spot</td></tr>
+      <tr><td>d</td><td>Manhattan distance from the parking lot entry to the spot</td></tr>
+      <tr><td>L</td><td>Current load of the zone containing the spot (number of cars parked)</td></tr>
+      <tr><td>&#945;</td><td>Congestion sensitivity — controls the efficiency–fairness trade-off</td></tr>
+    </tbody>
+  </table>
 
-<button onclick="showMessage()">Test</button>
+  <p>By varying &#945;, the system's behaviour shifts continuously. When &#945; is small the model behaves like a nearest-spot algorithm; when &#945; is large it distributes vehicles evenly across zones regardless of distance.</p>
 
-<p id="message"></p>
+  <h3>Performance Evaluation</h3>
+  <p>After simulation, system performance is measured by three quantities. <strong>Total travel distance</strong> D = &#8721;d<sub>i</sub> captures overall efficiency. <strong>Zone imbalance</strong> I = |L<sub>1</sub> &#8722; L<sub>2</sub>| captures fairness. Both are normalised to [0,1] and summed into a <strong>combined score</strong> Score = D<sub>norm</sub> + I<sub>norm</sub>, where a lower score is better. Details and graphs are in §5.</p>
 
-<script src="script.js"></script>
+  <div class="formula-box" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem;font-size:1.1rem;">
+    <div><span class="flabel" style="font-size:0.6rem">Total Distance</span>D = &#8721; d<sub>i</sub></div>
+    <div><span class="flabel" style="font-size:0.6rem">Zone Imbalance</span>I = |L<sub>1</sub> &#8722; L<sub>2</sub>|</div>
+    <div><span class="flabel" style="font-size:0.6rem">Combined Score</span>Score = D<sub>norm</sub> + I<sub>norm</sub></div>
+  </div>
+</section>
 
+<!-- ═══════════════ §2 MODEL ═══════════════ -->
+<section id="model">
+  <div class="section-label">§ 2 — Mathematical Model</div>
+  <h2>Variable Definitions</h2>
+
+  <p>The parking lot consists of <strong>5 rows × 10 columns</strong> (50 spots total). Spots are divided into two equal zones at the column midpoint: Zone 1 covers columns 0–4, Zone 2 covers columns 5–9. The entry point is at the top-left corner.</p>
+
+  <p>Distance is computed using the <strong>Manhattan metric</strong>, which reflects movement along row and column grid paths:</p>
+
+  <div class="formula-box">
+    <span class="flabel">Distance Metric</span>
+    d(x,y) = |x<sub>1</sub> &#8722; x<sub>2</sub>| + |y<sub>1</sub> &#8722; y<sub>2</sub>|
+  </div>
+
+  <p>The <strong>zone load L</strong> for each zone increments by 1 each time a vehicle parks there. As L grows, that zone becomes less attractive in the cost function — naturally redistributing later arrivals toward the emptier zone.</p>
+
+  <h3>Efficiency–Fairness Trade-off</h3>
+  <p>The parameter &#945; encodes a policy decision: <em>how much extra travel distance is acceptable in order to achieve balanced zone usage?</em></p>
+
+  <div class="tradeoff-wrap">
+    <div class="tradeoff-axis">
+      <span class="tax-label left">Efficiency</span>
+      <div class="tradeoff-axis-line"></div>
+      <span class="tax-label right">Fairness</span>
+    </div>
+    <div class="tradeoff-cards">
+      <div class="tradeoff-card tc-l">
+        <div class="tc-tag">Small &#945; — Efficiency Priority</div>
+        <div class="tc-alpha">&#945; &#8594; 0</div>
+        <div class="tc-eq">Cost &#8776; d &nbsp; (distance only)</div>
+        <p>Zone load term is suppressed. The algorithm always selects the nearest available spot. Congestion builds near the entry; Zone 1 fills rapidly while Zone 2 stays underused.</p>
+      </div>
+      <div class="tradeoff-card tc-r">
+        <div class="tc-tag">Large &#945; — Fairness Priority</div>
+        <div class="tc-alpha">&#945; &#8594; large</div>
+        <div class="tc-eq">Cost &#8776; &#945;·L &nbsp; (load dominates)</div>
+        <p>Zone load dominates. Cars are guided into the emptier zone even if it means a longer walk. Both zones fill evenly and entry-side congestion is avoided.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ §3 ALGORITHM ═══════════════ -->
+<section id="algorithm">
+  <div class="section-label">§ 3 — Algorithm</div>
+  <h2>Allocation Procedure</h2>
+
+  <p>The following steps are executed for each arriving car. The procedure is <strong>greedy</strong> — each vehicle independently selects the best spot available at the moment of arrival, with no lookahead or reservation.</p>
+
+  <div class="algo-box">
+    <div class="algo-step">
+      <div class="algo-num">1</div>
+      <div class="algo-content">
+        <div class="algo-title">Initialise the System</div>
+        <div class="algo-desc">Before any cars arrive, set both zone load counters to zero and mark all 50 spots as empty.
+          <div class="algo-sub">
+            <div class="algo-sub-item">zone_load[1] = <span class="val">0</span>, &nbsp; zone_load[2] = <span class="val">0</span></div>
+            <div class="algo-sub-item">occupied = <span class="val">{ }</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="algo-step">
+      <div class="algo-num">2</div>
+      <div class="algo-content">
+        <div class="algo-title">A Car Arrives at the Entry Point</div>
+        <div class="algo-desc">Cars arrive one at a time at the entry point <span class="ifc">(0, 0)</span>. The algorithm now evaluates every available spot to find the best assignment.</div>
+      </div>
+    </div>
+    <div class="algo-step">
+      <div class="algo-num">3</div>
+      <div class="algo-content">
+        <div class="algo-title">Compute the Cost for Every Available Spot</div>
+        <div class="algo-desc">For each unoccupied spot, calculate its cost using <span class="ifc">C = d + &#945; · L</span>, where d is the Manhattan distance from entry to that spot and L is the current load of the zone that spot belongs to.</div>
+      </div>
+    </div>
+    <div class="algo-step">
+      <div class="algo-num">4</div>
+      <div class="algo-content">
+        <div class="algo-title">Select the Spot with the Lowest Cost</div>
+        <div class="algo-desc">Compare all computed costs and choose the spot with the <strong>minimum C</strong>. This is the optimal assignment under the current &#945; setting.</div>
+      </div>
+    </div>
+    <div class="algo-step">
+      <div class="algo-num">5</div>
+      <div class="algo-content">
+        <div class="algo-title">Park the Car and Update All Records</div>
+        <div class="algo-desc">Mark the chosen spot as occupied, increment that zone's load counter, and add the travel distance to the running total.
+          <div class="algo-sub">
+            <div class="algo-sub-item">occupied.<span class="val">add</span>(chosen_spot)</div>
+            <div class="algo-sub-item">zone_load[zone(chosen_spot)] <span class="val">+= 1</span></div>
+            <div class="algo-sub-item">total_distance <span class="val">+= d</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="algo-step">
+      <div class="algo-num">6</div>
+      <div class="algo-content">
+        <div class="algo-title">Repeat for the Next Arriving Car</div>
+        <div class="algo-desc">Return to step 2. The updated zone loads now influence costs for subsequent cars — congested zones become less attractive automatically, creating self-regulating redistribution.</div>
+      </div>
+    </div>
+    <div class="algo-step">
+      <div class="algo-num">7</div>
+      <div class="algo-content">
+        <div class="algo-title">Record Final Performance Metrics</div>
+        <div class="algo-desc">After all n cars have been allocated, record D and I for this &#945; value.
+          <div class="algo-sub">
+            <div class="algo-sub-item">D = <span class="val">total_distance</span></div>
+            <div class="algo-sub-item">I = <span class="val">|zone_load[1] &#8722; zone_load[2]|</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ §4 SIMULATION ═══════════════ -->
+<section id="sim-section">
+  <div class="section-label">§ 4 — Interactive Simulation</div>
+  <h2>Parking Lot Simulation</h2>
+
+  <p>The grid shows a <strong>5 × 10 parking lot</strong>. Zone 1 (amber, columns 0–4) and Zone 2 (blue, columns 5–9) are separated by a dashed line. A small <strong>▶ arrow at the top-left corner of the grid</strong> marks the entry point at coordinate (0, 0) — the first spot to be allocated. <strong>Hover any spot</strong> to see its coordinates and cost. At slow/medium speed, cost values appear on each spot before the minimum is selected.</p>
+
+  <div class="sim-controls">
+    <div class="ctrl-group">
+      <label>&#945; &nbsp;<span class="lbl-text">(alpha) &#8212;</span> <span class="ctrl-val" id="alpha-display">1.0</span></label>
+      <input type="range" id="alpha-slider" min="0" max="10" step="0.5" value="1">
+    </div>
+    <div class="ctrl-group">
+      <label><span class="lbl-text">Number of cars &#8212;</span> <span class="ctrl-val" id="cars-display">30</span></label>
+      <input type="range" id="cars-slider" min="5" max="50" step="1" value="30">
+    </div>
+    <div class="ctrl-group">
+      <label><span class="lbl-text">Animation speed &#8212;</span> <span class="ctrl-val" id="speed-display">Medium</span></label>
+      <input type="range" id="speed-slider" min="1" max="3" step="1" value="2">
+    </div>
+    <div class="multi-row">
+      <input type="checkbox" id="multi-check">
+      <label for="multi-check"><span class="lbl-text">Multi-</span>&#945;<span class="lbl-text"> mode &#8212; values separated by commas:</span></label>
+      <input type="text" id="multi-input" placeholder="e.g. 0, 0.5, 1, 2, 3, 5" disabled style="flex:1;min-width:200px">
+    </div>
+  </div>
+
+  <div class="sim-buttons">
+    <button class="primary" id="btn-run">&#9654; Run Simulation</button>
+    <button id="btn-reset">&#8635; Reset</button>
+    <button class="secondary" onclick="document.getElementById('analysis').scrollIntoView({behavior:'smooth'})">&#8855; Go to Analysis</button>
+  </div>
+
+  <div class="sim-layout">
+    <div>
+      <div class="canvas-wrapper">
+        <canvas id="parking-canvas"></canvas>
+        <div id="spot-tooltip"></div>
+      </div>
+      <div id="sim-log">
+        <div class="log-header"><span style="text-transform:uppercase">Event Log &#8212; per car &amp; </span>&#945;<span style="text-transform:uppercase"> value</span></div>
+        <div class="log-entries" id="log-entries">
+          <div class="log-entry le-info">Awaiting simulation…</div>
+        </div>
+      </div>
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-label">Total Distance D</div><div class="stat-val" id="stat-dist">—</div></div>
+        <div class="stat-card"><div class="stat-label">Zone Imbalance I</div><div class="stat-val" id="stat-imb">—</div></div>
+        <div class="stat-card"><div class="stat-label">Cars Parked</div><div class="stat-val" id="stat-cars">—</div></div>
+      </div>
+    </div>
+
+    <div class="zone-panel">
+      <div class="zone-card z1">
+        <div class="zt">Zone 1 — Left</div>
+        <div class="zc" id="z1-count">0</div>
+        <div class="zsub">cars parked / max 25</div>
+        <div class="zbar-wrap"><div class="zbar" id="z1-bar" style="width:0%"></div></div>
+      </div>
+      <div class="zone-card z2">
+        <div class="zt">Zone 2 — Right</div>
+        <div class="zc" id="z2-count">0</div>
+        <div class="zsub">cars parked / max 25</div>
+        <div class="zbar-wrap"><div class="zbar" id="z2-bar" style="width:0%"></div></div>
+      </div>
+      <div class="as-card">
+        <div class="as-card-title">Last Completed Run</div>
+        <div class="as-row"><span class="as-k">&#945; (alpha)</span><span class="as-v" id="as-alpha">—</span></div>
+        <div class="as-row"><span class="as-k">D (total dist.)</span><span class="as-v" id="as-D">—</span></div>
+        <div class="as-row"><span class="as-k">I (imbalance)</span><span class="as-v" id="as-I">—</span></div>
+        <div class="as-row"><span class="as-k">D<sub>norm</sub></span><span class="as-v" id="as-Dn">—</span></div>
+        <div class="as-row"><span class="as-k">I<sub>norm</sub></span><span class="as-v" id="as-In">—</span></div>
+        <div class="as-row"><span class="as-k">Score</span><span class="as-v" id="as-score">—</span></div>
+      </div>
+      <div class="leg-card">
+        <div class="leg-title">Legend</div>
+        <div class="leg-row"><span style="color:var(--entry-stroke);font-size:1rem;line-height:1">▶</span>&nbsp;Entry point (0,0)</div>
+        <div class="leg-row"><div class="leg-sw" style="background:rgba(176,125,58,0.15);border:1px solid #b07d3a"></div>Zone 1 empty</div>
+        <div class="leg-row"><div class="leg-sw" style="background:rgba(176,125,58,0.78);border:1px solid #b07d3a"></div>Zone 1 occupied</div>
+        <div class="leg-row"><div class="leg-sw" style="background:rgba(42,96,128,0.15);border:1px solid #2a6080"></div>Zone 2 empty</div>
+        <div class="leg-row"><div class="leg-sw" style="background:rgba(42,96,128,0.78);border:1px solid #2a6080"></div>Zone 2 occupied</div>
+        <div class="leg-row"><div class="leg-sw" style="background:#6aaa5a"></div>Selected spot &#10003;</div>
+        <div class="leg-row"><div class="leg-sw" style="background:#f0f8f0;border:1px dashed #3a7a4a"></div>Evaluating (C= shown)</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ §5 ANALYSIS ═══════════════ -->
+<section id="analysis">
+  <div class="section-label">§ 5 — Analysis</div>
+  <h2>Graphical Analysis</h2>
+
+  <div class="alpha-selector">
+    <div class="asel-hdr"><span style="text-transform:uppercase">Select </span>&#945;<span style="text-transform:uppercase"> values to include (from simulated runs)</span></div>
+    <div class="alpha-chips" id="alpha-chips">
+      <span style="font-family:Fira Code,monospace;font-size:0.8rem;color:var(--muted)">No runs recorded yet.</span>
+    </div>
+    <div style="display:flex;gap:0.7rem;flex-wrap:wrap">
+      <button class="primary" id="btn-build-graphs">&#8855; Build Graphs</button>
+      <button id="btn-select-all">Select All</button>
+      <button id="btn-deselect-all">Deselect All</button>
+      <button id="btn-clear-data" style="color:var(--red);border-color:var(--red)">&#10005; Clear Data</button>
+    </div>
+  </div>
+
+  <div class="notice" id="analysis-notice">
+    &#9432; &nbsp;Run the simulation for at least two different &#945; values in §4 above. Each completed run appears as a chip above. Select which &#945; values to include, then click <strong>Build Graphs</strong>.
+  </div>
+
+  <div id="analysis-content" style="display:none">
+    <div class="chart-grid-3">
+      <div class="chart-wrap">
+        <h4><span style="text-transform:uppercase">Total Distance (D) vs </span>&#945;</h4>
+        <div class="chart-container"><canvas id="chart-dist"></canvas></div>
+      </div>
+      <div class="chart-wrap">
+        <h4><span style="text-transform:uppercase">Zone Imbalance (I) vs </span>&#945;</h4>
+        <div class="chart-container"><canvas id="chart-imb"></canvas></div>
+      </div>
+      <div class="chart-wrap">
+        <h4><span style="text-transform:uppercase">Combined Score vs </span>&#945;</h4>
+        <div class="chart-container"><canvas id="chart-score"></canvas></div>
+      </div>
+    </div>
+
+    <div class="analysis-table-wrap">
+      <table class="analysis-table">
+        <thead><tr>
+          <th>&#945;</th><th>Cars</th><th>D</th><th>I</th>
+          <th>D<sub>norm</sub></th><th>I<sub>norm</sub></th><th>Score</th>
+        </tr></thead>
+        <tbody id="analysis-body"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ §6 INSIGHT ═══════════════ -->
+<section id="insight">
+  <div class="section-label">§ 6 — Key Insight</div>
+  <h2>Interpretation</h2>
+
+  <p>The simulation reveals a clear and measurable trade-off between efficiency and fairness as &#945; is varied. Each regime produces a distinct system behaviour:</p>
+
+  <div class="insight-grid">
+    <div class="insight-card ic-low">
+      <div class="ic-label ic-low" style="color:var(--zone1)"><span style="text-transform:uppercase">Low </span>&#945;</div>
+      <div class="ic-heading">Efficiency Maximised</div>
+      <div class="ic-body">The cost function reduces to distance alone. Every arriving car parks in the nearest available spot. Travel distances are minimised but Zone 1 fills rapidly while Zone 2 stays largely empty.</div>
+      <div class="ic-metric">
+        <span>D &#8595; low</span>
+        <span>I &#8593; high</span>
+        <span>Score: mixed</span>
+      </div>
+    </div>
+    <div class="insight-card ic-mid">
+      <div class="ic-label" style="color:var(--accent3)"><span style="text-transform:uppercase">Medium </span>&#945;</div>
+      <div class="ic-heading">Optimal Balance</div>
+      <div class="ic-body">The zone load penalty begins to redirect cars before one zone becomes heavily overloaded. Both distance and imbalance are kept at reasonable levels. The combined score is typically minimised here.</div>
+      <div class="ic-metric">
+        <span>D &#8776; moderate</span>
+        <span>I &#8776; moderate</span>
+        <span>Score: &#8595; minimum</span>
+      </div>
+    </div>
+    <div class="insight-card ic-high">
+      <div class="ic-label" style="color:var(--zone2)"><span style="text-transform:uppercase">High </span>&#945;</div>
+      <div class="ic-heading">Fairness Maximised</div>
+      <div class="ic-body">Zone load dominates the cost function. Cars are aggressively redirected to the emptier zone regardless of distance. Zone imbalance drops near zero, but total travel distance increases noticeably.</div>
+      <div class="ic-metric">
+        <span>D &#8593; high</span>
+        <span>I &#8595; low</span>
+        <span>Score: mixed</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="insight-summary">
+    <div class="is-title" style="text-transform:uppercase">Mathematical Conclusion</div>
+    <p>The cost function C = d + &#945;L is a <strong>weighted linear combination</strong> of distance and zone load. The parameter &#945; acts as a continuous dial between two objectives: small &#945; minimises individual travel distance; large &#945; enforces equal zone usage. The combined score Score = D<sub>norm</sub> + I<sub>norm</sub> quantifies both simultaneously, and the &#945; that minimises it is the optimal trade-off point for a given configuration — neither extreme policy achieves the best overall outcome.</p>
+    <p><strong>Future Scope:</strong> more than two zones; cars departing so zone loads decrease over time; &#945; adjusting dynamically as the lot fills; multiple entry points; or probabilistic arrival patterns. Each addition increases realism while preserving the same cost-function structure.</p>
+  </div>
+</section>
+
+<footer>
+  Smart Parking Allocation Algorithm
+</footer>
+
+<!-- ═══════════════ JAVASCRIPT ═══════════════ -->
+<script>
+// ── THEME ──────────────────────────────────────────────────
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  document.getElementById('theme-btn').textContent = isDark ? '☾' : '☀';
+  drawGrid(simOccupied, null, null, lastZoneLoad);
+  if (document.getElementById('analysis-content').style.display !== 'none') {
+    buildGraphs(true);
+  }
+}
+
+// ── SIMULATION CORE ────────────────────────────────────────
+const ROWS=5, COLS=10, TOTAL=ROWS*COLS, ZONE_SPLIT=5, ZONE_CAP=25;
+function zoneOf(col){ return col<ZONE_SPLIT?0:1; }
+function dist(col,row){ return col+row; }
+
+function runSimulation(alpha, cars){
+  const occ = new Array(TOTAL).fill(false);
+  const zl = [0,0];
+  let totalDist=0;
+  const seq=[];
+  for(let c=0;c<cars;c++){
+    let best={cost:Infinity,idx:-1,z:-1,d:-1};
+    const evals=[];
+    for(let col=0;col<COLS;col++){
+      for(let row=0;row<ROWS;row++){
+        const idx=col*ROWS+row;
+        if(occ[idx]) continue;
+        const z=zoneOf(col), d=dist(col,row);
+        const cost=d+alpha*zl[z];
+        evals.push({idx,cost,z,d,col,row});
+        if(cost<best.cost) best={cost,idx,z,d};
+      }
+    }
+    if(best.idx===-1) break;
+    occ[best.idx]=true; zl[best.z]++; totalDist+=best.d;
+    seq.push({spotIdx:best.idx,cost:best.cost,z:best.z,d:best.d,evals});
+  }
+  return{totalDist,imbalance:Math.abs(zl[0]-zl[1]),zoneLoad:[...zl],seq};
+}
+
+// ── CANVAS ─────────────────────────────────────────────────
+const canvas=document.getElementById('parking-canvas');
+const ctx=canvas.getContext('2d');
+let cellW,cellH,PAD_X,PAD_TOP,ENTRY_ROW_H;
+let lastZoneLoad=[0,0];
+let lastEvalMap=null;
+let lastHlIdx=null;
+
+// Theme-aware colours
+function tc(varName){
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+}
+
+function resizeCanvas(){
+  const simSec=document.getElementById('sim-section');
+  const zonePanel=document.querySelector('.zone-panel');
+  const gap=24;
+  const panelW=zonePanel?zonePanel.offsetWidth:250;
+  const secPad=parseFloat(getComputedStyle(simSec).paddingLeft)||40;
+  const W=simSec.clientWidth - panelW - gap - secPad*2;
+  canvas.width=Math.max(200,Math.round(W));
+  PAD_X=Math.round(canvas.width*0.025);
+  PAD_TOP=38; // space for zone header labels row only
+  ENTRY_ROW_H=0; // no longer used for row height
+  const gridW=canvas.width-PAD_X*2;
+  cellW=gridW/COLS;
+  cellH=cellW*0.68;
+  canvas.height=PAD_TOP+cellH*ROWS+10;
+}
+
+function spotXY(col,row){
+  return[PAD_X+(col+0.5)*cellW, PAD_TOP+(row+0.5)*cellH];
+}
+
+// Map canvas pixel → grid spot
+function pixelToSpot(px,py){
+  const col=Math.floor((px-PAD_X)/cellW);
+  const row=Math.floor((py-PAD_TOP)/cellH);
+  if(col<0||col>=COLS||row<0||row>=ROWS) return null;
+  return{col,row,idx:col*ROWS+row};
+}
+
+function drawGrid(occupied, hlIdx, evalSpots, zl){
+  try{ resizeCanvas(); }catch(e){}
+  lastZoneLoad=zl||[0,0];
+  lastHlIdx=hlIdx;
+  lastEvalMap=evalSpots;
+
+  const isDark=document.documentElement.getAttribute('data-theme')==='dark';
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // ── Entry arrow at top-left of grid ──
+  const labelSz=Math.max(8,cellW*0.2);
+  ctx.font=`600 ${labelSz}px Fira Code, monospace`;
+  ctx.fillStyle=isDark?'#7ac47a':'#2a6a3a';
+  ctx.textAlign='left'; ctx.textBaseline='bottom';
+  ctx.fillText('▶ entry (0,0)', PAD_X+2, PAD_TOP-2);
+  const lsz=Math.max(11,cellW*0.26);
+  ctx.font=`600 ${lsz}px Fira Code, monospace`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  // Zone 1 label centred over cols 0-4
+  ctx.fillStyle=isDark?'#c8923a':'#8b5e3c';
+  ctx.fillText('ZONE  1', PAD_X+2.5*cellW, PAD_TOP*0.5);
+  // Zone 2 label centred over cols 5-9
+  ctx.fillStyle=isDark?'#4a90b8':'#2e6b8a';
+  ctx.fillText('ZONE  2', PAD_X+7.5*cellW, PAD_TOP*0.5);
+
+  // Zone divider line (full height)
+  const divX=PAD_X+ZONE_SPLIT*cellW;
+  ctx.save(); ctx.setLineDash([5,5]);
+  ctx.strokeStyle=isDark?'#555':'#bbb'; ctx.lineWidth=1;
+  ctx.beginPath();
+  ctx.moveTo(divX, PAD_TOP-4);
+  ctx.lineTo(divX, PAD_TOP+cellH*ROWS+4);
+  ctx.stroke(); ctx.restore();
+
+  // Spots
+  for(let col=0;col<COLS;col++){
+    for(let row=0;row<ROWS;row++){
+      const idx=col*ROWS+row;
+      const [cx,cy]=spotXY(col,row);
+      const z=zoneOf(col);
+      const isOcc=occupied[idx];
+      const isHL=(hlIdx===idx);
+      const ev=evalSpots&&evalSpots.find(e=>e.idx===idx);
+      const w=cellW*0.84, h=cellH*0.76;
+
+      ctx.save();
+      if(isHL){
+        ctx.shadowColor=tc('--accent3'); ctx.shadowBlur=16;
+        ctx.fillStyle='#6aaa5a';
+      } else if(isOcc){
+        ctx.fillStyle=z===0?'rgba(176,125,58,0.8)':'rgba(42,96,128,0.8)';
+        if(isDark) ctx.fillStyle=z===0?'rgba(200,146,58,0.85)':'rgba(74,144,184,0.85)';
+      } else if(ev){
+        ctx.fillStyle=ev.isMin?(isDark?'#1a2e1a':'#e8f5ea'):(isDark?'#1f2433':'#f5f3ee');
+        ctx.setLineDash([3,3]);
+      } else {
+        ctx.fillStyle=z===0
+          ?(isDark?'rgba(200,146,58,0.1)':'rgba(176,125,58,0.13)')
+          :(isDark?'rgba(74,144,184,0.1)':'rgba(42,96,128,0.13)');
+      }
+      ctx.fillRect(cx-w/2, cy-h/2, w, h);
+      ctx.strokeStyle=isHL?tc('--accent3'):(z===0?tc('--zone1'):tc('--zone2'));
+      ctx.lineWidth=isHL?2.5:(isOcc?1.6:0.75);
+      ctx.strokeRect(cx-w/2, cy-h/2, w, h);
+      ctx.restore();
+
+      if(ev&&!isOcc){
+        const fsz=Math.max(7,cellW*0.22);
+        ctx.font=`700 ${fsz}px Fira Code, monospace`;
+        ctx.fillStyle=ev.isMin?(isDark?'#7ac47a':'#2a6a3a'):(isDark?'#aaa8a0':'#5a5248');
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText('C='+Math.round(ev.cost),cx,cy);
+      } else if(isOcc&&!isHL){
+        const fsz=Math.max(9,cellW*0.4);
+        ctx.font=`${fsz}px serif`;
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText('🚗',cx,cy);
+      }
+    }
+  }
+}
+
+// ── HOVER TOOLTIP ──────────────────────────────────────────
+const tooltip=document.getElementById('spot-tooltip');
+canvas.addEventListener('mousemove', e=>{
+  const rect=canvas.getBoundingClientRect();
+  const scaleX=canvas.width/rect.width;
+  const scaleY=canvas.height/rect.height;
+  const px=(e.clientX-rect.left)*scaleX;
+  const py=(e.clientY-rect.top)*scaleY;
+  const sp=pixelToSpot(px,py);
+  if(!sp){tooltip.style.display='none';return;}
+  const alpha=getAlpha();
+  const zl=lastZoneLoad;
+  const z=zoneOf(sp.col);
+  const d=dist(sp.col,sp.row);
+  const cost=d+alpha*zl[z];
+  const occ=simOccupied[sp.idx];
+  tooltip.style.display='block';
+  tooltip.innerHTML=`(${sp.col}, ${sp.row}) &nbsp;|&nbsp; Zone ${z+1} &nbsp;|&nbsp; d=${d} &nbsp;|&nbsp; `
+    +(occ?'<span style="color:var(--red)">Occupied</span>':`C=${cost.toFixed(1)}`);
+  // Position relative to canvas wrapper
+  const canvasRect=canvas.getBoundingClientRect();
+  const wrapRect=canvas.parentElement.getBoundingClientRect();
+  let tx=e.clientX-wrapRect.left+10;
+  let ty=e.clientY-wrapRect.top-36;
+  tooltip.style.left=tx+'px';
+  tooltip.style.top=ty+'px';
+});
+canvas.addEventListener('mouseleave',()=>{ tooltip.style.display='none'; });
+
+// ── STATE ──────────────────────────────────────────────────
+let simRunning=false;
+let simOccupied=new Array(TOTAL).fill(false);
+let simulatedData=[];
+let selectedAlphas=new Set();
+
+function updateZoneUI(zl){
+  document.getElementById('z1-count').textContent=zl[0];
+  document.getElementById('z2-count').textContent=zl[1];
+  document.getElementById('z1-bar').style.width=Math.min(100,Math.round(zl[0]/ZONE_CAP*100))+'%';
+  document.getElementById('z2-bar').style.width=Math.min(100,Math.round(zl[1]/ZONE_CAP*100))+'%';
+}
+
+function addLog(html){
+  const entries=document.getElementById('log-entries');
+  const d=document.createElement('div');
+  d.className='log-entry'; d.innerHTML=html;
+  entries.appendChild(d);
+  const log=document.getElementById('sim-log');
+  log.scrollTop=log.scrollHeight;
+}
+function clearLog(){ document.getElementById('log-entries').innerHTML=''; }
+
+// ── CONTROLS ───────────────────────────────────────────────
+const alphaSlider=document.getElementById('alpha-slider');
+const carsSlider=document.getElementById('cars-slider');
+const speedSlider=document.getElementById('speed-slider');
+const multiCheck=document.getElementById('multi-check');
+const multiInput=document.getElementById('multi-input');
+
+alphaSlider.oninput=()=>document.getElementById('alpha-display').textContent=parseFloat(alphaSlider.value).toFixed(1);
+carsSlider.oninput=()=>document.getElementById('cars-display').textContent=carsSlider.value;
+speedSlider.oninput=()=>document.getElementById('speed-display').textContent=['Slow','Medium','Fast'][+speedSlider.value-1];
+
+multiCheck.addEventListener('change',()=>{
+  const on=multiCheck.checked;
+  multiInput.disabled=!on;
+  alphaSlider.disabled=on;
+  document.getElementById('alpha-display').style.opacity=on?'0.4':'1';
+});
+
+function getAlpha(){ return parseFloat(alphaSlider.value); }
+function getCars(){ return parseInt(carsSlider.value); }
+function getDelay(){ return[900,380,60][+speedSlider.value-1]; }
+function isFast(){ return +speedSlider.value===3; }
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+function getAlphaList(){
+  if(multiCheck.checked){
+    const vals=multiInput.value.split(',').map(s=>parseFloat(s.trim())).filter(v=>!isNaN(v)&&v>=0);
+    return vals.length?vals:null;
+  }
+  return[parseFloat(alphaSlider.value)];
+}
+
+// ── RUN SIMULATION ─────────────────────────────────────────
+async function runSim(){
+  if(simRunning) return;
+  const alphas=getAlphaList();
+  if(!alphas){alert('Please enter valid alpha (\u03B1) values.');return;}
+  simRunning=true;
+  document.getElementById('btn-run').disabled=true;
+  document.getElementById('btn-reset').disabled=true;
+  const cars=getCars(), fast=isFast(), delay=getDelay();
+
+  for(let ai=0;ai<alphas.length;ai++){
+    const alpha=alphas[ai];
+    const result=runSimulation(alpha,cars);
+    const seq=result.seq;
+
+    simOccupied=new Array(TOTAL).fill(false);
+    const zl=[0,0];
+    let runDist=0;
+
+    clearLog();
+    addLog(`<span class="le-head">— &#945; = ${alpha.toFixed(1)} &nbsp;|&nbsp; ${cars} cars —</span>`);
+    drawGrid(simOccupied,null,null,zl);
+    updateZoneUI(zl);
+
+    for(let i=0;i<seq.length;i++){
+      const step=seq[i];
+      const minCost=step.evals.reduce((m,e)=>e.cost<m?e.cost:m,Infinity);
+
+      if(!fast){
+        const em=step.evals.map(e=>({...e,isMin:e.cost===minCost}));
+        drawGrid(simOccupied,null,em,zl);
+        await sleep(delay*0.55);
+      }
+
+      simOccupied[step.spotIdx]=true;
+      zl[step.z]++;
+      runDist+=step.d;
+      // Brief green highlight flash
+      drawGrid(simOccupied,step.spotIdx,null,zl);
+
+      const zCls=step.z===0?'le-z1':'le-z2';
+      addLog(
+        `<span class="le-car">Car ${i+1}</span> &rarr; `+
+        `<span class="${zCls}">Zone ${step.z+1}</span> &nbsp;`+
+        `d=${step.d} &nbsp;C=${step.cost.toFixed(1)} &nbsp;`+
+        `<span class="le-info">[&#945;=${alpha.toFixed(1)} | L&#8321;=${zl[0]} L&#8322;=${zl[1]}]</span>`
+      );
+      updateZoneUI(zl);
+      document.getElementById('stat-dist').textContent=runDist;
+      document.getElementById('stat-imb').textContent=Math.abs(zl[0]-zl[1]);
+      document.getElementById('stat-cars').textContent=i+1;
+
+      if(fast){
+        await sleep(30);
+        drawGrid(simOccupied,null,null,zl); // clear highlight
+      } else {
+        await sleep(delay);
+        drawGrid(simOccupied,null,null,zl); // clear highlight
+        await sleep(50);
+      }
+    }
+
+    const D=result.totalDist, I=result.imbalance;
+    addLog(`<span class="le-done">&#10003; &#945;=${alpha.toFixed(1)} | D=${D} | I=${I}</span>`);
+
+    const key=`${alpha}_${cars}`;
+    const idx=simulatedData.findIndex(r=>r.key===key);
+    const entry={key,alpha,cars,D,I};
+    if(idx>=0) simulatedData[idx]=entry; else simulatedData.push(entry);
+
+    const allD=simulatedData.map(r=>r.D), allI=simulatedData.map(r=>r.I);
+    const Dmax=Math.max(...allD), Imax=Math.max(...allI);
+    const Dn=D/Dmax, In=Imax>0?I/Imax:0;
+    document.getElementById('as-alpha').textContent=alpha.toFixed(1);
+    document.getElementById('as-D').textContent=D;
+    document.getElementById('as-I').textContent=I;
+    document.getElementById('as-Dn').textContent=Dn.toFixed(3);
+    document.getElementById('as-In').textContent=In.toFixed(3);
+    document.getElementById('as-score').textContent=(Dn+In).toFixed(3);
+
+    refreshChips();
+    if(ai<alphas.length-1) await sleep(400);
+  }
+
+  simRunning=false;
+  document.getElementById('btn-run').disabled=false;
+  document.getElementById('btn-reset').disabled=false;
+}
+
+function resetSim(){
+  if(simRunning) return;
+  simOccupied=new Array(TOTAL).fill(false);
+  lastZoneLoad=[0,0];
+  drawGrid(simOccupied,null,null,[0,0]);
+  updateZoneUI([0,0]);
+  clearLog();
+  document.getElementById('log-entries').innerHTML='<div class="log-entry le-info">Awaiting simulation…</div>';
+  ['stat-dist','stat-imb','stat-cars','as-alpha','as-D','as-I','as-Dn','as-In','as-score']
+    .forEach(id=>document.getElementById(id).textContent='—');
+}
+
+// ── CHIPS ──────────────────────────────────────────────────
+function refreshChips(){
+  const container=document.getElementById('alpha-chips');
+  if(!simulatedData.length){
+    container.innerHTML='<span style="font-family:Fira Code,monospace;font-size:0.8rem;color:var(--muted)">No runs recorded yet.</span>';
+    return;
+  }
+  const sorted=[...simulatedData].sort((a,b)=>a.alpha-b.alpha||a.cars-b.cars);
+  container.innerHTML=sorted.map(r=>{
+    const sel=selectedAlphas.has(r.key);
+    return`<span class="achip ${sel?'sel':''}" onclick="toggleChip('${r.key}')">&#945;=${r.alpha.toFixed(1)} (n=${r.cars})</span>`;
+  }).join('');
+}
+
+function toggleChip(key){
+  if(selectedAlphas.has(key)) selectedAlphas.delete(key);
+  else selectedAlphas.add(key);
+  refreshChips();
+}
+
+document.getElementById('btn-select-all').onclick=()=>{
+  simulatedData.forEach(r=>selectedAlphas.add(r.key));
+  refreshChips();
+};
+document.getElementById('btn-deselect-all').onclick=()=>{ selectedAlphas.clear(); refreshChips(); };
+document.getElementById('btn-clear-data').onclick=()=>{
+  if(confirm('Clear all recorded simulation data?')){
+    simulatedData=[]; selectedAlphas.clear();
+    refreshChips();
+    document.getElementById('analysis-content').style.display='none';
+    document.getElementById('analysis-notice').style.display='';
+  }
+};
+
+// ── BUILD GRAPHS ───────────────────────────────────────────
+let chartInstances={};
+
+document.getElementById('btn-build-graphs').onclick=()=>buildGraphs(false);
+
+function buildGraphs(silent){
+  if(!selectedAlphas.size){
+    if(!silent) alert('Select at least one alpha (\u03B1) value first.');
+    return;
+  }
+  const rows=simulatedData
+    .filter(r=>selectedAlphas.has(r.key))
+    .sort((a,b)=>a.alpha-b.alpha||a.cars-b.cars);
+
+  const Dmax=Math.max(...rows.map(r=>r.D));
+  const Imax=Math.max(...rows.map(r=>r.I));
+  const enriched=rows.map(r=>({
+    ...r,
+    Dn:r.D/Dmax,
+    In:Imax>0?r.I/Imax:0,
+    score:r.D/Dmax+(Imax>0?r.I/Imax:0)
+  }));
+  const minScore=Math.min(...enriched.map(r=>r.score));
+  // x-axis: just the numeric alpha values
+  const labels=enriched.map(r=>r.alpha.toFixed(1));
+
+  const isDark=document.documentElement.getAttribute('data-theme')==='dark';
+  const gridColor=isDark?'rgba(80,80,100,0.4)':'rgba(200,190,180,0.5)';
+  const tickColor=isDark?'#8a8898':'#6b6458';
+  const tooltipBg=isDark?'#181c26':'#fff';
+  const tooltipBorder=isDark?'#2e3448':'#d8d3c8';
+  const tooltipTitle=isDark?'#d4976a':'#8b5e3c';
+
+  function mkOpts(yLabel, color){
+    return{
+      responsive:true,
+      maintainAspectRatio:false,
+      resizeDelay:50,
+      animation:{duration:400},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:tooltipBg, borderColor:tooltipBorder, borderWidth:1,
+          titleColor:tooltipTitle, bodyColor:isDark?'#e8e2d8':'#1a1610',
+          titleFont:{family:'Fira Code',size:13,weight:'600'},
+          bodyFont:{family:'Fira Code',size:13},
+          callbacks:{
+            label:c=>' '+yLabel+': '+(typeof c.parsed.y==='number'?c.parsed.y.toFixed(2):c.parsed.y)
+          }
+        }
+      },
+      scales:{
+        x:{
+          ticks:{color:tickColor, font:{family:'Fira Code',size:12}, maxRotation:0},
+          grid:{color:gridColor},
+          title:{
+            display:true,
+            text:'\u03B1 (alpha)',
+            color:tickColor,
+            font:{family:'Fira Code',size:12,weight:'600'}
+          }
+        },
+        y:{
+          ticks:{color:tickColor, font:{family:'Fira Code',size:12}},
+          grid:{color:gridColor},
+          title:{display:true, text:yLabel, color:tickColor, font:{family:'Fira Code',size:12,weight:'600'}}
+        }
+      }
+    };
+  }
+
+  function mkChart(id,data,color,yLabel){
+    if(chartInstances[id]){ chartInstances[id].destroy(); }
+    chartInstances[id]=new Chart(document.getElementById(id),{
+      type:'line',
+      data:{
+        labels,
+        datasets:[{
+          data, borderColor:color,
+          backgroundColor:color+(isDark?'33':'28'),
+          fill:true, tension:0.3,
+          pointBackgroundColor:color, pointBorderColor:'#fff',
+          pointRadius:7, pointHoverRadius:10,
+          borderWidth:3
+        }]
+      },
+      options:mkOpts(yLabel,color)
+    });
+  }
+
+  const c1=isDark?'#c8923a':'#b07d3a';
+  const c2=isDark?'#4a90b8':'#2a6080';
+  const c3=isDark?'#7ac47a':'#3a7a4a';
+
+  mkChart('chart-dist',  enriched.map(r=>r.D),     c1, 'Total Distance D');
+  mkChart('chart-imb',   enriched.map(r=>r.I),     c2, 'Zone Imbalance I');
+  mkChart('chart-score', enriched.map(r=>r.score), c3, 'Combined Score');
+
+  const body=document.getElementById('analysis-body');
+  body.innerHTML=enriched.map(r=>`
+    <tr class="${r.score===minScore?'best':''}">
+      <td>${r.alpha.toFixed(1)}</td><td>${r.cars}</td><td>${r.D}</td><td>${r.I}</td>
+      <td>${r.Dn.toFixed(3)}</td><td>${r.In.toFixed(3)}</td>
+      <td>${r.score.toFixed(3)}${r.score===minScore?' &#9733;':''}</td>
+    </tr>`).join('');
+
+  document.getElementById('analysis-content').style.display='block';
+  document.getElementById('analysis-notice').style.display='none';
+}
+
+// ── INIT ───────────────────────────────────────────────────
+document.getElementById('btn-run').onclick=runSim;
+document.getElementById('btn-reset').onclick=resetSim;
+
+window.addEventListener('load',()=>{ resetSim(); refreshChips(); });
+window.addEventListener('resize',()=>{
+  if(!simRunning) drawGrid(simOccupied,null,null,lastZoneLoad);
+  // Charts use fixed height containers — no resize needed
+});
+</script>
 </body>
 </html>
